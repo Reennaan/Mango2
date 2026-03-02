@@ -1,11 +1,15 @@
+import requests
 import webview
 from bs4 import BeautifulSoup
 import cloudscraper
 import pprint
 import json
 from pathlib import Path
+import os
 
 baseurl = "https://www.anime-planet.com/"
+scraper = cloudscraper.create_scraper()
+currentFolder = "../downloads"
 
 
 class Api:
@@ -15,7 +19,7 @@ class Api:
     def fetch(self):
         url = "https://www.anime-planet.com/manga/read-online/"
 
-        scraper = cloudscraper.create_scraper()
+        
         response = scraper.get(url)
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -30,9 +34,11 @@ class Api:
             title = gimgs[i]["alt"]
             jsCall = f"window.buildMangaInfo({json.dumps(title)},{json.dumps(imgUrl)},{json.dumps(fullHref)})"
             window.evaluate_js(jsCall)
+       
+
+
 
     def getChapters(self, imgUrl, url, mangaName):
-        scraper = cloudscraper.create_scraper()
         response = scraper.get(url)
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -56,14 +62,44 @@ class Api:
     def getPendingDownloadData(self):
         return self.pending_download
 
-    def downloadFile(self,link):
-        print(link)
+    def downloadFile(self,slug,chapter):
+        uiUrl = f"https://www.anime-planet.com/manga/{slug}/chapters/{chapter}"
+        scraper.get(uiUrl)
+
+        
+        url = f"https://www.anime-planet.com/api/manga/chapter/{slug}/{chapter}"
+        #print(url)
+        response = scraper.get(url)
+        dados = response.json()
+        imagesUrl = dados["data"]["images"]
+        #print(imagesUrl)
+
+        basePath = currentFolder
+        folderName = f"{slug}-Chapter-{chapter}"
+        fullPath = os.path.join(basePath,folderName)
+
+        os.makedirs(fullPath, exist_ok=True)
+
+        
+        for i, item in enumerate(imagesUrl):
+            print(f"baixando pagina {i}")
+            images = scraper.get(item, headers={"Referer":uiUrl})
+            filePath = os.path.join(fullPath,f"{i+1}.jpg")
+            with open(filePath, "wb") as f:
+                f.write(images.content)
+
+        #print(dados["data"]["images"])
+        
+    def selectFolder():
+        folder = window.create_file_dialog(webview.FOLDER_DIALOG)
+        currentFolder = folder        
+
 
 
 api = Api()
 base = Path(__file__).resolve().parent.parent
 index_file = base / "assets" / "index.html"
 download_file = base / "assets" / "download.html"
-window = webview.create_window("Mango", index_file.as_uri(), js_api=api)
-webview.start()
+window = webview.create_window("Mango", index_file.as_uri(), js_api=api, width=1280 ,height=720)
+webview.start(api.fetch,debug=True)
 
