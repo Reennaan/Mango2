@@ -90,9 +90,14 @@ class Api:
 
         #print(dados["data"]["images"])
         
-    def selectFolder():
+    def selectFolder(self):
+        print("aaaaa")
         folder = window.create_file_dialog(webview.FOLDER_DIALOG)
-        currentFolder = folder        
+        if folder:
+            self.currentFolder = folder[0] if isinstance(folder, (list, tuple)) else folder
+            print(f"current foolder: {self.currentFolder}")
+            return self.currentFolder
+        return None     
 
 
 
