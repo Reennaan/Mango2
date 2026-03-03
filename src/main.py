@@ -90,6 +90,7 @@ class Api:
 
         #print(dados["data"]["images"])
         
+        
     def selectFolder(self):
         print("aaaaa")
         folder = window.create_file_dialog(webview.FOLDER_DIALOG)
