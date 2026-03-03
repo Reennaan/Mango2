@@ -1,4 +1,3 @@
-import requests
 import webview
 from bs4 import BeautifulSoup
 import cloudscraper
@@ -27,6 +26,7 @@ class Api:
 
         gimgs = grid.select("ul > li.card > a.tooltip > div.crop > img")
         gref = grid.select("ul > li.card > a.tooltip")
+        
 
         for i in range(0, 10):
             imgUrl = gimgs[i]["data-src"]
@@ -36,6 +36,17 @@ class Api:
             window.evaluate_js(jsCall)
        
 
+    def getDesc(self,url):
+
+        parts = url.split("/")
+        newUrl = "/".join(parts[0:5])
+
+        response = scraper.get(newUrl)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        element = soup.select_one("div.synopsisManga > p")
+        desc = element.get_text(" ", strip=True) if element else ""
+        newdesc = desc[:551]
+        return newdesc
 
 
     def getChapters(self, imgUrl, url, mangaName):
@@ -44,6 +55,13 @@ class Api:
         soup = BeautifulSoup(response.text, 'html.parser')
         grid = soup.find("ul", class_="cardDeck")
         chapter = soup.find_all("h3", class_="cardName")
+        desc = self.getDesc(url)
+        # Seletor menos frágil para descrição (o layout da página varia)
+        
+        #print(url)
+
+        
+
         chapterNames = [item.get_text(strip=True) for item in chapter]
 
         hrefs = grid.select("ul > li.card > a")
@@ -55,6 +73,7 @@ class Api:
             "img": imgUrl,
             "title": mangaName,
             "downloadLinks": downloadLinks,
+            "desc": desc
         }
 
         return download_file.as_uri()#agora a mudança de pagina é feita através do js
@@ -108,4 +127,3 @@ index_file = base / "assets" / "index.html"
 download_file = base / "assets" / "download.html"
 window = webview.create_window("Mango", index_file.as_uri(), js_api=api, width=1280 ,height=720)
 webview.start(api.fetch,debug=True)
-
