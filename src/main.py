@@ -5,6 +5,8 @@ import pprint
 import json
 from pathlib import Path
 import os
+from providers.weebcentral import WeebCentral
+from providers.animeplanet import AnimePlanet
 
 baseurl = "https://www.anime-planet.com/"
 scraper = cloudscraper.create_scraper()
@@ -14,6 +16,41 @@ currentFolder = "../downloads"
 class Api:
     def __init__(self):
         self.pending_download = None
+        self.providers ={
+            "Weeb Central": WeebCentral(),
+            "Anime Planet": AnimePlanet()
+        }
+
+        self.currentProvider = self.providers["Weeb Central"]
+
+
+    def changeProvider(self, name):
+        if  name in self.providers:
+            self.currentProvider = self.providers[f"{name}"]
+
+    def genericFetch(self):
+        mangas = self.currentProvider.fetch_home()
+        for i in range(0,10):
+            jsCall = f"window.buildMangaInfo({json.dumps(mangas[i]['title'])},{json.dumps(mangas[i]['cover'])},{json.dumps(mangas[i]['link'])})"
+            window.evaluate_js(jsCall)
+
+    def genericGetDetails(self, img, mangalink, mangaName):
+        mangas = self.currentProvider.get_details(mangalink)[0]
+        
+        self.pending_download = {
+            "chapters": mangas.get("chapters", []),
+            "img": img,
+            "title": mangaName,
+            "downloadLinks": mangas.get("chaptersLinks", []),
+            "desc": mangas.get("desc", "")
+
+        }
+        return True
+
+        
+        
+
+
 
     def fetch(self):
         url = "https://www.anime-planet.com/manga/read-online/"
@@ -69,11 +106,11 @@ class Api:
 
         #guarda os dados temporariamente os dados para que a próxima página "download.html" obtenha eles com segurança
         self.pending_download = {
-            "chapters": chapterNames,
+            "chapters": chapterNames,#OK
             "img": imgUrl,
             "title": mangaName,
-            "downloadLinks": downloadLinks,
-            "desc": desc
+            "downloadLinks": downloadLinks,#OK
+            "desc": desc#OK
         }
 
         return download_file.as_uri()#agora a mudança de pagina é feita através do js
@@ -108,7 +145,7 @@ class Api:
                 f.write(images.content)
 
         #print(dados["data"]["images"])
-        
+    
         
     def selectFolder(self):
         print("aaaaa")
@@ -118,6 +155,24 @@ class Api:
             print(f"current foolder: {self.currentFolder}")
             return self.currentFolder
         return None     
+    
+    def genericDownload(pageList,chapter,name):
+
+        basePath = currentFolder
+        folderName = f"{name}-Chapter-{chapter}"
+        fullPath = os.path.join(basePath,folderName)
+
+        os.makedirs(fullPath, exist_ok=True)
+
+        for i, item in enumerate(pageList):
+            print(f"baixando pagina {i}")
+            images = scraper.get(item)
+            filePath = os.path.join(fullPath,f"{i+1}.jpg")
+            with open(filePath, "wb") as f:
+                f.write(images.content)
+
+
+        return ""
 
 
 
