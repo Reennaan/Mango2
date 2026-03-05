@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import os
 import re
+import time
 from providers.weebcentral import WeebCentral
 from providers.animeplanet import AnimePlanet
 
@@ -17,6 +18,7 @@ currentFolder = "../downloads"
 class Api:
     def __init__(self):
         self.pending_download = None
+        self.currentFolder = currentFolder
         self.providers ={
             "Weeb Central": WeebCentral(),
             "Anime Planet": AnimePlanet()
@@ -29,11 +31,15 @@ class Api:
         if  name in self.providers:
             self.currentProvider = self.providers[f"{name}"]
 
+
+
     def genericFetch(self):
         mangas = self.currentProvider.fetch_home()
         for i in range(0,10):
             jsCall = f"window.buildMangaInfo({json.dumps(mangas[i]['title'])},{json.dumps(mangas[i]['cover'])},{json.dumps(mangas[i]['link'])})"
             window.evaluate_js(jsCall)
+
+
 
     def genericGetDetails(self, img, mangalink, mangaName):
         details = self.currentProvider.get_details(mangalink)
@@ -53,19 +59,26 @@ class Api:
     
 
     def genericDownload(self,chapterLink,chapter,name):
+        print(chapterLink)
 
         pageList = self.currentProvider.get_pages(chapterLink);
         
         #print(pageList)
 
 
+        headers = {
+        "Referer": chapterLink, 
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+    }
+
+        local_scraper = cloudscraper.create_scraper()
 
         filterChar = r'[<>:"/\\|?*]'
         filteredName = re.sub(filterChar, "_",name)
         filteredChapter = re.sub(filterChar, "_", chapter)
 
 
-        basePath = currentFolder
+        basePath = self.currentFolder
         folderName = f"{filteredName}-Chapter-{filteredChapter}"
         fullPath = os.path.join(basePath,folderName)
 
@@ -73,88 +86,23 @@ class Api:
 
         for i, item in enumerate(pageList):
             print(f"baixando pagina {i}")
-            images = scraper.get(item)
+            images = local_scraper.get(item, headers=headers)
             filePath = os.path.join(fullPath,f"{i+1}.jpg")
+            if self.currentProvider == "Anime Planet": time.sleep(1)
             with open(filePath, "wb") as f:
                 f.write(images.content)
 
 
         return ""
     
+
+
     def getPendingDownloadData(self):
         return self.pending_download
         
-        
-
-
-
-    def fetch(self):
-        url = "https://www.anime-planet.com/manga/read-online/"
-
-        
-        response = scraper.get(url)
-
-        soup = BeautifulSoup(response.text, 'html.parser')
-        grid = soup.find("ul", class_="cardDeck")
-
-        gimgs = grid.select("ul > li.card > a.tooltip > div.crop > img")
-        gref = grid.select("ul > li.card > a.tooltip")
-        
-
-        for i in range(0, 10):
-            imgUrl = gimgs[i]["data-src"]
-            fullHref = baseurl + gref[i]["href"].lstrip('/')
-            title = gimgs[i]["alt"]
-            jsCall = f"window.buildMangaInfo({json.dumps(title)},{json.dumps(imgUrl)},{json.dumps(fullHref)})"
-            window.evaluate_js(jsCall)
-       
-
-    def getDesc(self,url):
-
-        parts = url.split("/")
-        newUrl = "/".join(parts[0:5])
-
-        response = scraper.get(newUrl)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        element = soup.select_one("div.synopsisManga > p")
-        desc = element.get_text(" ", strip=True) if element else ""
-        newdesc = desc[:551]
-        return newdesc
-
-
     
 
-    
 
-    def downloadFile(self,slug,chapter):
-        uiUrl = f"https://www.anime-planet.com/manga/{slug}/chapters/{chapter}"
-        scraper.get(uiUrl)
-
-        
-        url = f"https://www.anime-planet.com/api/manga/chapter/{slug}/{chapter}"
-        #print(url)
-        response = scraper.get(url)
-        dados = response.json()
-        imagesUrl = dados["data"]["images"]
-        #print(imagesUrl)
-
-        basePath = currentFolder
-        folderName = f"{slug}-Chapter-{chapter}"
-        fullPath = os.path.join(basePath,folderName)
-
-        os.makedirs(fullPath, exist_ok=True)
-
-        
-        for i, item in enumerate(imagesUrl):
-            print(f"baixando pagina {i}")
-            images = scraper.get(item, headers={"Referer":uiUrl})
-            filePath = os.path.join(fullPath,f"{i+1}.jpg")
-            with open(filePath, "wb") as f:
-                f.write(images.content)
-
-        #print(dados["data"]["images"])
-    
-        
     def selectFolder(self):
         
         folder = window.create_file_dialog(webview.FileDialog.FOLDER)
@@ -173,4 +121,4 @@ base = Path(__file__).resolve().parent.parent
 index_file = base / "assets" / "index.html"
 download_file = base / "assets" / "download.html"
 window = webview.create_window("Mango", index_file.as_uri(), js_api=api, width=1280 ,height=720)
-webview.start()
+webview.start(debug=True)
