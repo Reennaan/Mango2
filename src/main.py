@@ -5,6 +5,7 @@ import pprint
 import json
 from pathlib import Path
 import os
+import re
 from providers.weebcentral import WeebCentral
 from providers.animeplanet import AnimePlanet
 
@@ -35,18 +36,53 @@ class Api:
             window.evaluate_js(jsCall)
 
     def genericGetDetails(self, img, mangalink, mangaName):
-        mangas = self.currentProvider.get_details(mangalink)[0]
+        details = self.currentProvider.get_details(mangalink)
+        mangas = details[0] if details else {}
         
         self.pending_download = {
             "chapters": mangas.get("chapters", []),
             "img": img,
             "title": mangaName,
+            "author": mangas.get("author", ""),
             "downloadLinks": mangas.get("chaptersLinks", []),
             "desc": mangas.get("desc", "")
 
         }
+        #print(self.pending_download)
         return True
+    
 
+    def genericDownload(self,chapterLink,chapter,name):
+
+        pageList = self.currentProvider.get_pages(chapterLink);
+        
+        #print(pageList)
+
+
+
+        filterChar = r'[<>:"/\\|?*]'
+        filteredName = re.sub(filterChar, "_",name)
+        filteredChapter = re.sub(filterChar, "_", chapter)
+
+
+        basePath = currentFolder
+        folderName = f"{filteredName}-Chapter-{filteredChapter}"
+        fullPath = os.path.join(basePath,folderName)
+
+        os.makedirs(fullPath, exist_ok=True)
+
+        for i, item in enumerate(pageList):
+            print(f"baixando pagina {i}")
+            images = scraper.get(item)
+            filePath = os.path.join(fullPath,f"{i+1}.jpg")
+            with open(filePath, "wb") as f:
+                f.write(images.content)
+
+
+        return ""
+    
+    def getPendingDownloadData(self):
+        return self.pending_download
         
         
 
@@ -86,37 +122,9 @@ class Api:
         return newdesc
 
 
-    def getChapters(self, imgUrl, url, mangaName):
-        response = scraper.get(url)
+    
 
-        soup = BeautifulSoup(response.text, 'html.parser')
-        grid = soup.find("ul", class_="cardDeck")
-        chapter = soup.find_all("h3", class_="cardName")
-        desc = self.getDesc(url)
-        # Seletor menos frágil para descrição (o layout da página varia)
-        
-        #print(url)
-
-        
-
-        chapterNames = [item.get_text(strip=True) for item in chapter]
-
-        hrefs = grid.select("ul > li.card > a")
-        downloadLinks = [item.get("href") for item in hrefs]
-
-        #guarda os dados temporariamente os dados para que a próxima página "download.html" obtenha eles com segurança
-        self.pending_download = {
-            "chapters": chapterNames,#OK
-            "img": imgUrl,
-            "title": mangaName,
-            "downloadLinks": downloadLinks,#OK
-            "desc": desc#OK
-        }
-
-        return download_file.as_uri()#agora a mudança de pagina é feita através do js
-
-    def getPendingDownloadData(self):
-        return self.pending_download
+    
 
     def downloadFile(self,slug,chapter):
         uiUrl = f"https://www.anime-planet.com/manga/{slug}/chapters/{chapter}"
@@ -148,31 +156,15 @@ class Api:
     
         
     def selectFolder(self):
-        print("aaaaa")
-        folder = window.create_file_dialog(webview.FOLDER_DIALOG)
+        
+        folder = window.create_file_dialog(webview.FileDialog.FOLDER)
         if folder:
             self.currentFolder = folder[0] if isinstance(folder, (list, tuple)) else folder
             print(f"current foolder: {self.currentFolder}")
             return self.currentFolder
         return None     
     
-    def genericDownload(pageList,chapter,name):
 
-        basePath = currentFolder
-        folderName = f"{name}-Chapter-{chapter}"
-        fullPath = os.path.join(basePath,folderName)
-
-        os.makedirs(fullPath, exist_ok=True)
-
-        for i, item in enumerate(pageList):
-            print(f"baixando pagina {i}")
-            images = scraper.get(item)
-            filePath = os.path.join(fullPath,f"{i+1}.jpg")
-            with open(filePath, "wb") as f:
-                f.write(images.content)
-
-
-        return ""
 
 
 
@@ -181,4 +173,4 @@ base = Path(__file__).resolve().parent.parent
 index_file = base / "assets" / "index.html"
 download_file = base / "assets" / "download.html"
 window = webview.create_window("Mango", index_file.as_uri(), js_api=api, width=1280 ,height=720)
-webview.start(api.fetch,debug=True)
+webview.start()
