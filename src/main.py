@@ -74,6 +74,13 @@ class Api:
             jsCall = f"window.buildMangaInfo({json.dumps(mangas[i]['title'])},{json.dumps(mangas[i]['cover'])},{json.dumps(mangas[i]['link'])})"
             window.evaluate_js(jsCall)
 
+    def search_mango(self,name):
+        mangas = self.currentProvider.search_mango(name)
+        print(len(mangas))
+        for item in mangas:
+            jsCall = f"window.buildMangaInfo({json.dumps(item['title'])},{json.dumps(item['cover'])},{json.dumps(item['link'])}), changeShowText('Results:')"
+            window.evaluate_js(jsCall)
+        
 
 
     def genericGetDetails(self, img, mangalink, mangaName):
@@ -187,7 +194,7 @@ class Api:
         return self.pending_download
         
     
-
+ 
 
     def selectFolder(self):
         
