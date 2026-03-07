@@ -49,6 +49,7 @@ class Api:
                 self.currentFolder = saved_folder
         except Exception as e:
             print(f"failed to load settings: {e}")
+            window.evaluate_js(f"showToast('ailed to load settings: {e}')")
 
     def _save_settings(self):
         try:
@@ -59,6 +60,7 @@ class Api:
             )
         except Exception as e:
             print(f"failed to save settings: {e}")
+            window.evaluate_js(f"showToast('failed to save settings: {e}')")
 
 
     def changeProvider(self, name):
@@ -77,9 +79,17 @@ class Api:
     def search_mango(self,name):
         mangas = self.currentProvider.search_mango(name)
         print(len(mangas))
+
+        window.evaluate_js("document.getElementById('library-container').innerHTML = '';")
+        window.evaluate_js("changeShowText('Results:');")
+
+
         for item in mangas:
-            jsCall = f"window.buildMangaInfo({json.dumps(item['title'])},{json.dumps(item['cover'])},{json.dumps(item['link'])}), changeShowText('Results:')"
+            jsCall = f"window.buildMangaInfo({json.dumps(item['title'])},{json.dumps(item['cover'])},{json.dumps(item['link'])})"  
+            
             window.evaluate_js(jsCall)
+
+        #window.evaluate_js("showToast('aqui')")
         
 
 
